@@ -1,14 +1,10 @@
-import express from 'express';
+import app from './app.js';
 import dotenv from 'dotenv';
 
 
 dotenv.config();
 
 const port = process.env.PORT || 5050
-
-const app = express()
-
-app.use(express.json())
 
 app.listen(port, () => {
     console.log(`REST API Server is running on port:  ${port}`);
