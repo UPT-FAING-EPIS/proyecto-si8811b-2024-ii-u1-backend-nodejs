@@ -3,7 +3,7 @@ import User from '../models/User'
 import { hashPassword } from '../utils/auth'
 import { generateToken } from '../utils/token'
 import Token from '../models/Token'
-
+import { AuthEmail } from '../emails/AuthEmail'
 export class AuthController {
 
     static createAccount = async (req: Request, res: Response) => {
@@ -27,9 +27,36 @@ export class AuthController {
             token.token = generateToken()
             token.user = user.id
 
+            // Enviar email de confirmación
+            AuthEmail.sendConfirmatioEmail({ 
+                email: user.email,
+                name: user.name,
+                token: token.token 
+            })
+
             await Promise.allSettled([user.save(), token.save()])
 
             res.send('Cuenta creada, revisa tu email')
+        } catch (error) {
+            res.status(500).json({error: 'Hubo un error'})
+        }
+    }
+
+    static confirmAccount = async (req: Request, res: Response) => {
+        try {
+            const { token } = req.body
+
+            const tokenExists = await Token.findOne({token})
+            if(!tokenExists){
+                const error = new Error('Token no válido')
+                return res.status(401).json({error: error.message})
+            }
+
+            const user = await User.findById(tokenExists.user)
+            user.confirmed = true
+
+            await Promise.allSettled([user.save(), tokenExists.deleteOne()])
+            res.send('Cuenta confirmada, ahora puedes iniciar sesión')
         } catch (error) {
             res.status(500).json({error: 'Hubo un error'})
         }
