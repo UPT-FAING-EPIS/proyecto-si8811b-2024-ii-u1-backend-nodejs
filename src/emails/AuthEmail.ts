@@ -16,7 +16,7 @@ export class AuthEmail {
             html: `<p>Hola: ${user.name}, ya te has registrado en la aplicacion de Topicos,
             ya casi esta todo listo, solo debes confirmar tu cuenta<p>
                 <p>Visita el siguiente enlace:</p>
-                <a href="${process.env.FRONTEDND_URL}/auth/confirm-account">Confirmar cuenta</a>
+                <a href="${process.env.FRONTEND_URL}/auth/confirm-account">Confirmar cuenta</a>
                 <p>Ingresa el codigo: <b>${user.token}</b></p>
                 <p>Este token expira en 10 minutos</p>
             `
@@ -33,7 +33,7 @@ export class AuthEmail {
             text: 'Topicos - Restablecer el Password',
             html: `<p>Hola: ${user.name}, has solicitado reestablecer tu password<p>
                 <p>Visita el siguiente enlace:</p>
-                <a href="${process.env.FRONTEDND_URL}/auth/new-password">Reestablecer Password</a>
+                <a href="${process.env.FRONTEND_URL}/auth/new-password">Reestablecer Password</a>
                 <p>Ingresa el codigo: <b>${user.token}</b></p>
                 <p>Este token expira en 10 minutos</p>
             `

@@ -5,6 +5,7 @@ import { generateToken } from '../utils/token';
 import Token from '../models/Token';
 import { AuthEmail } from '../emails/AuthEmail';
 import logger from '../logs/logger';
+import { generateJWT } from '../utils/jwt';
 export class AuthController {
 
     static createAccount = async (req: Request, res: Response) => {
@@ -28,6 +29,7 @@ export class AuthController {
             // Generar token
             const token = new Token();
             token.token = generateToken();
+            console.log(token)
             token.user = user.id;
 
             // Enviar email de confirmación
@@ -111,8 +113,11 @@ export class AuthController {
                 return res.status(401).json({ error: error.message });
             }
 
+            const token = generateJWT({id: user.id}) 
+
             logger.info(`User authenticated successfully for email: ${email}`);
-            res.send('Autenticado.................');
+            res.send(token);
+
         } catch (error) {
             logger.error('Error in login:', error);
             res.status(500).json({ error: 'Hubo un error' });
@@ -140,6 +145,7 @@ export class AuthController {
 
             const token = new Token();
             token.token = generateToken();
+            console.log(token)
             token.user = user.id;
 
             await AuthEmail.sendConfirmatioEmail({ 
@@ -173,6 +179,7 @@ export class AuthController {
 
             const token = new Token();
             token.token = generateToken();
+            console.log(token)
             token.user = user.id;
             await token.save();
 
@@ -236,7 +243,11 @@ export class AuthController {
             logger.error('Error in updatePasswordWithToken:', error);
             res.status(500).json({ error: 'Hubo un error' });
         }
-    };
+    }
+
+    static user = async (req: Request, res: Response) => {
+        return res.json(req.user)
+    }
 }
 
 export default AuthController;

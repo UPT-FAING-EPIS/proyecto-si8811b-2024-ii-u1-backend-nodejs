@@ -1,1 +1,13 @@
+.env
 node_modules/
+
+# Ignorar la carpeta completa de logs
+logs/
+
+# Ignorar archivos de logs en cualquier parte del proyecto
+*.log
+
+# Ignorar logs generados por nodemon y PM2
+*.pid
+*.out
+*.err
