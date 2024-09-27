@@ -2,99 +2,113 @@ import puppeteer from 'puppeteer';
 import Tesseract from 'tesseract.js';
 import fs from 'fs';
 import { ingresarContrasenaTecladoVirtual } from '../utils/keyboardHandler';
-import { puppeteerOptions } from '../config/puppeteerConfig'; // Config opcional para puppeteer
+import { puppeteerOptions } from '../config/puppeteerConfig';
 
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const autenticar = async (codigo: string, contrasena: string) => {
-    const browser = await puppeteer.launch(puppeteerOptions); // O headless: false si deseas ver el proceso
+    const browser = await puppeteer.launch({
+        ...puppeteerOptions,
+        headless: false,
+        defaultViewport: null,
+        args: ['--start-maximized']
+    });
     const page = await browser.newPage();
+    
     try {
-        // Navegar al login de la Intranet
-        await page.goto('https://net.upt.edu.pe/index2.php', { waitUntil: 'networkidle2' });
+        page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+        page.on('pageerror', error => console.log('PAGE ERROR:', error.message));
+
+        const waitForPageStability = async () => {
+            await page.waitForFunction(() => {
+                return document.readyState === 'complete' && !document.querySelector('img[src*="loading"]');
+            }, { timeout: 30000 });
+        };
+
+        await page.goto('https://net.upt.edu.pe/index2.php', { waitUntil: 'networkidle0' });
+        await waitForPageStability();
 
         // Ingresar el código del usuario
         await page.type('#t1', codigo);
         await page.click('#Submit');
-        await page.waitForSelector('#t2:not([disabled])', { visible: true });
+        await page.waitForSelector('#t2:not([disabled])', { visible: true, timeout: 30000 });
+        await waitForPageStability();
 
-        // Esperar a que la imagen del captcha esté visible
-        await page.waitForSelector('img[src="imagen.php"]', { visible: true, timeout: 60000 });
+        const procesarCaptcha = async () => {
+            await page.waitForSelector('img[src="imagen.php"]', { visible: true, timeout: 60000 });
+            const captchaElement = await page.$('img[src="imagen.php"]');
+            if (!captchaElement) throw new Error('Captcha no encontrado en la página.');
 
-        // Seleccionar la imagen del captcha
-        const captchaImage = await page.$('img[src="imagen.php"]');
+            const captchaPath = './captcha.png';
+            await captchaElement.screenshot({ path: captchaPath });
 
-        if (captchaImage) {
-            const captchaSrc = await captchaImage.getProperty('src');
-            const captchaURL = await captchaSrc.jsonValue();
+            const { data: { text } } = await Tesseract.recognize(captchaPath, 'eng', { logger: m => console.log(m) });
+            return text.trim().replace(/\s/g, '');
+        };
 
-            if (captchaURL) {
-                const captchaPath = './captcha.png';
-                const captchaURL = await captchaSrc.jsonValue();
+        const captcha = await procesarCaptcha();
+        console.log('Captcha reconocido: ${captcha}');
 
-                // Si la URL ya contiene "https://", no concatenamos el dominio
-                const captchaFullURL = captchaURL.startsWith('http') ? captchaURL : `https://net.upt.edu.pe/${captchaURL}`;
+        await ingresarContrasenaTecladoVirtual(page, contrasena);
+        await wait(1000); 
 
-                console.log(`Captcha URL: ${captchaFullURL}`);
-
-                // Descargar la imagen del captcha
-                const viewSource = await page.goto(captchaFullURL, { waitUntil: 'networkidle2' });
-
-                if (viewSource && viewSource.ok()) {
-                    const buffer = await viewSource.buffer();
-                    fs.writeFileSync(captchaPath, buffer);
-
-                    // Usar OCR para leer el captcha
-                    const { data: { text } } = await Tesseract.recognize(captchaPath, 'eng', { logger: m => console.log(m) });
-
-                    // Limpiar el texto del captcha
-                    const captcha = text.trim().replace(/\s/g, '');
-                    console.log(`Captcha reconocido: ${captcha}`);
-
-                    // Ingresar la contraseña usando el teclado virtual
-                    await ingresarContrasenaTecladoVirtual(page, contrasena);
-
-                    // Pausa antes de ingresar el captcha para simular comportamiento humano
-                    await new Promise(resolve => setTimeout(resolve, 2000));  // Espera 2 segundos  // Espera 2 segundos
-
-                    // Ingresar el captcha reconocido automáticamente
-                    await page.type('#kamousagi', captcha);
-
-                    // Pausa antes de enviar el formulario
-                    await new Promise(resolve => setTimeout(resolve, 2000));  // Espera 2 segundos
-
-                    // Enviar el formulario usando JavaScript directamente
-                    await page.evaluate(() => {
-                        document.querySelector('form').submit();
-                    });
-
-                    // Espera la navegación después del envío
-                    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 });
-
-                    // Verificar si se navega a la página correcta
-                    const currentURL = page.url();
-                    console.log('URL después de enviar el formulario:', currentURL);
-
-                    if (!currentURL.includes('inicio.php')) {  // Ajusta según la URL esperada después del login exitoso
-                        console.error('Error durante la navegación, no se llegó a la página esperada.');
-                        return null;
-                    }
-
-                    // Capturar la URL y las cookies de sesión
-                    const cookies = await page.cookies();
-                    console.log('Cookies de sesión:', cookies);
-                    return { cookies, currentURL };
-                } else {
-                    console.error('Error al descargar la imagen del captcha.');
-                    return null;
-                }
+        await page.evaluate((captchaText) => {
+            const kamousagiInput = document.querySelector('#kamousagi') as HTMLInputElement;
+            if (kamousagiInput) {
+                kamousagiInput.value = captchaText;
             } else {
-                console.error('No se pudo obtener la URL del captcha.');
-                return null;
+                console.error('No se encontró el elemento #kamousagi');
             }
-        } else {
-            console.error('Captcha no encontrado en la página.');
-            return null;
+        }, captcha);
+
+        await wait(1000);
+
+        const camposCompletos = await page.evaluate(() => {
+            const codigo = (document.querySelector('#t1') as HTMLInputElement)?.value;
+            const contrasena = (document.querySelector('#t2') as HTMLInputElement)?.value;
+            const captcha = (document.querySelector('#kamousagi') as HTMLInputElement)?.value;
+            console.log('Codigo: ${codigo}', 'Contraseña: ${contrasena}', 'Captcha: ${captcha}');
+            return codigo && contrasena && captcha;
+        });
+
+        if (!camposCompletos) {
+            throw new Error('No todos los campos están completos antes de enviar el formulario.');
         }
+
+        await page.evaluate(() => {
+            const form = document.querySelector('form') as HTMLFormElement;
+            if (form) {
+                form.submit();
+            } else {
+                console.error('No se encontró el formulario');
+            }
+        });
+
+        await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 });
+
+        // Verificar si hay un segundo redireccionamiento
+        const secondForm = await page.$('form[name="frmloginb"]');
+        if (secondForm) {
+            console.log('Se encontró el formulario para redireccionamiento, esperando el redireccionamiento automático...');
+            await page.evaluate(() => {
+                document.forms['frmloginb'].submit();
+            });
+            await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 });
+        }
+
+        const currentURL = page.url();
+        console.log('URL después de enviar el formulario:', currentURL);
+
+        if (!currentURL.includes('inicio.php')) {
+            const content = await page.content();
+            console.log('Contenido de la página de error:', content);
+            throw new Error('Error durante la navegación, no se llegó a la página esperada.');
+        }
+
+        const cookies = await page.cookies();
+        console.log('Cookies de sesión:', cookies);
+        return { cookies, currentURL };
+
     } catch (error) {
         console.error('Error durante autenticación:', error);
         return null;
