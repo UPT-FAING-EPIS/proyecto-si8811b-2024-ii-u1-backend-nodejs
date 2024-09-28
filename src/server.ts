@@ -4,8 +4,8 @@ import { connectDB } from './config/db';
 import authRoutes from './routes/authRoutes';
 import swaggerJsDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
-import options from './swaggerOptions'; // importa el archivo de opciones de Swagger
-import logger from '../src/logs/logger'; // importa el archivo de configuración del logger
+import options from './swaggerOptions'; 
+import logger from '../src/logs/logger'; 
 import syncRoutes from './routes/syncRoutes';
 
 dotenv.config();
@@ -27,7 +27,7 @@ app.use(express.json());
 
 app.use('/api/v1/auth', authRoutes);
 
-app.use('/api/v1/', syncRoutes);
+app.use('/api/v1/sync', syncRoutes);
 
 // Log cuando el servidor esté corriendo
 

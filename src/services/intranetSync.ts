@@ -1,6 +1,7 @@
 import puppeteer from 'puppeteer';
 import Tesseract from 'tesseract.js';
 import fs from 'fs';
+import path from 'path';
 import { ingresarContrasenaTecladoVirtual } from '../utils/keyboardHandler';
 import { puppeteerOptions } from '../config/puppeteerConfig';
 
@@ -9,11 +10,15 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export const autenticar = async (codigo: string, contrasena: string) => {
     const browser = await puppeteer.launch({
         ...puppeteerOptions,
-        headless: false,
         defaultViewport: null,
         args: ['--start-maximized']
     });
     const page = await browser.newPage();
+
+    const tempDir = './temp';
+    if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir);
+    }
     
     try {
         page.on('console', msg => console.log('PAGE LOG:', msg.text()));
@@ -39,15 +44,19 @@ export const autenticar = async (codigo: string, contrasena: string) => {
             const captchaElement = await page.$('img[src="imagen.php"]');
             if (!captchaElement) throw new Error('Captcha no encontrado en la página.');
 
-            const captchaPath = './captcha.png';
+            const captchaPath = path.join(tempDir, 'captcha.png');
             await captchaElement.screenshot({ path: captchaPath });
 
             const { data: { text } } = await Tesseract.recognize(captchaPath, 'eng', { logger: m => console.log(m) });
+
+            // Eliminar la imagen temporal
+            fs.unlinkSync(captchaPath);
+           
             return text.trim().replace(/\s/g, '');
         };
 
         const captcha = await procesarCaptcha();
-        console.log('Captcha reconocido: ${captcha}');
+        console.log(`Captcha reconocido: ${captcha}`);
 
         await ingresarContrasenaTecladoVirtual(page, contrasena);
         await wait(1000); 

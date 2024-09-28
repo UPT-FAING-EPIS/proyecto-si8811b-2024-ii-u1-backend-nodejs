@@ -239,6 +239,31 @@ router.post('/update-password/:token',
     AuthController.updatePasswordWithToken
 )
 
+/**
+ * @swagger
+ * /api/v1/auth/user:
+ *   get:
+ *     summary: Obtener datos del usuario autenticado
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Datos del usuario autenticado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *       401:
+ *         description: No autorizado, falta token
+ */
+
 router.get('/user',
     authenticate,
     AuthController.user
