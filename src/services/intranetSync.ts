@@ -19,7 +19,7 @@ export const autenticar = async (codigo: string, contrasena: string) => {
     if (!fs.existsSync(tempDir)) {
         fs.mkdirSync(tempDir);
     }
-    
+
     try {
         page.on('console', msg => console.log('PAGE LOG:', msg.text()));
         page.on('pageerror', error => console.log('PAGE ERROR:', error.message));
@@ -33,7 +33,7 @@ export const autenticar = async (codigo: string, contrasena: string) => {
         await page.goto('https://net.upt.edu.pe/index2.php', { waitUntil: 'networkidle0' });
         await waitForPageStability();
 
-        // Ingresar el código del usuario
+        // Ingresar el código del usuario mediante teclado virtual
         await page.type('#t1', codigo);
         await page.click('#Submit');
         await page.waitForSelector('#t2:not([disabled])', { visible: true, timeout: 30000 });
@@ -51,16 +51,17 @@ export const autenticar = async (codigo: string, contrasena: string) => {
 
             // Eliminar la imagen temporal
             fs.unlinkSync(captchaPath);
-           
             return text.trim().replace(/\s/g, '');
         };
 
         const captcha = await procesarCaptcha();
         console.log(`Captcha reconocido: ${captcha}`);
 
+        // Ingresar la contraseña mediante teclado virtual
         await ingresarContrasenaTecladoVirtual(page, contrasena);
-        await wait(1000); 
+        await wait(1000);
 
+        // Ingresar el captcha en el campo correspondiente
         await page.evaluate((captchaText) => {
             const kamousagiInput = document.querySelector('#kamousagi') as HTMLInputElement;
             if (kamousagiInput) {
@@ -72,11 +73,12 @@ export const autenticar = async (codigo: string, contrasena: string) => {
 
         await wait(1000);
 
+        // Verificar que todos los campos estén completos antes de enviar el formulario
         const camposCompletos = await page.evaluate(() => {
             const codigo = (document.querySelector('#t1') as HTMLInputElement)?.value;
             const contrasena = (document.querySelector('#t2') as HTMLInputElement)?.value;
             const captcha = (document.querySelector('#kamousagi') as HTMLInputElement)?.value;
-            console.log('Codigo: ${codigo}', 'Contraseña: ${contrasena}', 'Captcha: ${captcha}');
+            console.log(`Codigo: ${codigo}`, `Contraseña: ${contrasena}`, `Captcha: ${captcha}`);
             return codigo && contrasena && captcha;
         });
 
@@ -84,6 +86,7 @@ export const autenticar = async (codigo: string, contrasena: string) => {
             throw new Error('No todos los campos están completos antes de enviar el formulario.');
         }
 
+        // Enviar el formulario
         await page.evaluate(() => {
             const form = document.querySelector('form') as HTMLFormElement;
             if (form) {
@@ -93,7 +96,9 @@ export const autenticar = async (codigo: string, contrasena: string) => {
             }
         });
 
+        // Esperar la primera navegación
         await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 });
+        await waitForPageStability(); // Asegurarse de que la página esté estable
 
         // Verificar si hay un segundo redireccionamiento
         const secondForm = await page.$('form[name="frmloginb"]');
@@ -102,7 +107,10 @@ export const autenticar = async (codigo: string, contrasena: string) => {
             await page.evaluate(() => {
                 document.forms['frmloginb'].submit();
             });
+
+            // Esperar la segunda navegación
             await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 });
+            await waitForPageStability(); // Asegurarse de que la página esté estable
         }
 
         const currentURL = page.url();
@@ -116,6 +124,8 @@ export const autenticar = async (codigo: string, contrasena: string) => {
 
         const cookies = await page.cookies();
         console.log('Cookies de sesión:', cookies);
+
+        // Devolver datos mediante JSON
         return { cookies, currentURL };
 
     } catch (error) {
