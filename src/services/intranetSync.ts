@@ -135,3 +135,36 @@ export const autenticar = async (codigo: string, contrasena: string) => {
         await browser.close();
     }
 };
+
+export const autenticarYExtraerHorario = async (codigo: string, contrasena: string) => {
+    // Navegar a la página de horarios.
+    // Extraer datos del horario en un formato estructurado.
+    
+    const horarios = []; 
+    const cookies = [];  
+
+    return { horarios, cookies };
+};
+
+
+export const autenticarYExtraerAsistencias = async (codigo: string, contrasena: string) => {
+    // Navegar a la página de asistencias.
+    // Extraer datos de asistencias en un formato estructurado.
+
+    const asistencias = []; 
+    const cookies = [];     
+
+    return { asistencias, cookies };
+};
+
+
+export const autenticarYExtraerCreditos = async (codigo: string, contrasena: string) => {
+    // Navegar a la página de créditos acumulados.
+    // Extraer los datos de créditos en un formato estructurado.
+
+    const creditos = 0; 
+    const cookies = [];  
+
+    return { creditos, cookies };
+};
+
