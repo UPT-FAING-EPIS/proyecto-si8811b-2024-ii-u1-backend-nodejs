@@ -122,17 +122,23 @@ export const autenticar = async (codigo: string, contrasena: string) => {
             throw new Error('Error durante la navegación, no se llegó a la página esperada.');
         }
 
+        const sessionMatch = currentURL.match(/sesion=([^&]+)/);
+        const sessionToken = sessionMatch ? sessionMatch[1] : null;
+
+        if (!sessionToken) {
+            throw new Error('No se encontró el parámetro de sesión en la URL');
+        }
+
         const cookies = await page.cookies();
         console.log('Cookies de sesión:', cookies);
 
         // Devolver datos mediante JSON
-        return { cookies, currentURL };
+        return { cookies, sessionToken, page };
 
     } catch (error) {
         console.error('Error durante autenticación:', error);
-        return null;
-    } finally {
         await browser.close();
+        return null;
     }
 };
 
@@ -147,14 +153,84 @@ export const autenticarYExtraerHorario = async (codigo: string, contrasena: stri
 };
 
 
+// Extraer Asistencias de Cursos
 export const autenticarYExtraerAsistencias = async (codigo: string, contrasena: string) => {
-    // Navegar a la página de asistencias.
-    // Extraer datos de asistencias en un formato estructurado.
+    const authResult = await autenticar(codigo, contrasena);
+    if (!authResult) return null;
 
-    const asistencias = []; 
-    const cookies = [];     
+    const { page, cookies, sessionToken } = authResult;
 
-    return { asistencias, cookies };
+    try {
+        const asistenciaURL = `https://net.upt.edu.pe/alumno.php?asistencias=1&sesion=${sessionToken}`;
+        await page.setCookie(...cookies);
+        await page.goto(asistenciaURL, { waitUntil: 'networkidle2' });
+        console.log('Navegación a la página de asistencias completada');
+
+        if (!page.url().includes(`asistencias=1&sesion=${sessionToken}`)) {
+            throw new Error('No se llegó a la URL de la página de asistencias con sesión.');
+        }
+
+        await page.waitForSelector('#div_h2c', { timeout: 20000 });
+        console.log('Selector #div_h2c encontrado, extrayendo datos de asistencias');
+
+        // Extraer datos de asistencias
+        const asistencias = await page.evaluate(() => {
+            const contenedorAsistencias = document.querySelector('#div_h2c');
+            if (!contenedorAsistencias) return [];
+
+            const cursos = Array.from(contenedorAsistencias.querySelectorAll('li'));
+            return cursos.map(curso => {
+                const nombreCurso = curso.querySelector('strong')?.innerText || '';
+
+                // Búsqueda de la tabla correspondiente
+                let tabla = curso.nextElementSibling;
+                while (tabla && !tabla.querySelector('table')) {
+                    tabla = tabla.nextElementSibling;
+                }
+                
+                if (!tabla || !tabla.querySelector('table')) {
+                    console.log(`No se encontró una tabla para el curso: ${nombreCurso}`);
+                    return { curso: nombreCurso, asistencias: [] };
+                }
+
+                const filas = Array.from(tabla.querySelectorAll('tr'));
+                if (filas.length < 3) {
+                    console.log(`Estructura de tabla inesperada en el curso: ${nombreCurso}`);
+                    return { curso: nombreCurso, asistencias: [] };
+                }
+
+                const fechas = Array.from(filas[0].querySelectorAll('th')).slice(1).map(th => th.innerText.trim());
+                const dias = Array.from(filas[1].querySelectorAll('td')).slice(1).map(td => td.innerText.trim());
+                const estados = Array.from(filas[2].querySelectorAll('td')).slice(1).map(td => td.innerText.trim());
+
+                const registros = fechas.map((fecha, index) => ({
+                    fecha,
+                    dia: dias[index] || '',
+                    estado: estados[index] || ''
+                })).filter(reg => reg.fecha && reg.dia && reg.estado); 
+
+                return {
+                    curso: nombreCurso,
+                    asistencias: registros
+                };
+            });
+        });
+
+        await page.close();
+        await page.browser().close();
+
+        return { asistencias, cookies };
+
+    } catch (error) {
+        console.error('Error durante la extracción de asistencias:', error);
+
+        if (!page.isClosed()) {
+            await page.close();
+        }
+        await page.browser().close();
+
+        return null;
+    }
 };
 
 
