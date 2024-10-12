@@ -1,0 +1,22 @@
+.env
+node_modules/
+
+# Ignorar la carpeta completa de logs
+logs/
+*.log
+
+# Ignorar logs generados por nodemon y PM2
+*.pid
+*.out
+*.err
+
+# Ignorar captchas y archivos temporales
+temp/
+*.png  # Por si captchas temporales se guardan en otro lugar
+
+# Ignorar configuración de Puppeteer descargada
+puppeteer/.local-chromium/
+
+# Ignorar carpetas de construcción o distribución
+dist/
+build/
