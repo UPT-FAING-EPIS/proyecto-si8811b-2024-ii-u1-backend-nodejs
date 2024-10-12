@@ -24,8 +24,12 @@ const router = Router();
  *             properties:
  *               codigo:
  *                 type: string
+ *                 description: Código del usuario (INTRANET) 
+ *                 example: "2016764598"
  *               contrasena:
  *                 type: string
+ *                 description: Contraseña del usuario (INTRANET)
+ *                 example: "7610832"
  *     responses:
  *       200:
  *         description: Sincronización exitosa
@@ -59,12 +63,12 @@ router.post(
  *             properties:
  *               codigo:
  *                 type: string
- *                 description: Código del usuario
- *                 example: "123456"
+ *                 description: Código del usuario (INTRANET) 
+ *                 example: "2016764598"
  *               contrasena:
  *                 type: string
- *                 description: Contraseña del usuario
- *                 example: "password123"
+ *                 description: Contraseña del usuario (INTRANET)
+ *                 example: "7610832"
  *     responses:
  *       200:
  *         description: Sincronización de horario exitosa
@@ -128,12 +132,12 @@ router.post(
  *             properties:
  *               codigo:
  *                 type: string
- *                 description: Código del usuario
- *                 example: "123456"
+ *                 description: Código del usuario (INTRANET) 
+ *                 example: "2016764598"
  *               contrasena:
  *                 type: string
- *                 description: Contraseña del usuario
- *                 example: "password123"
+ *                 description: Contraseña del usuario (INTRANET)
+ *                 example: "7610832"
  *     responses:
  *       200:
  *         description: Sincronización de asistencias exitosa
@@ -145,17 +149,36 @@ router.post(
  *                 message:
  *                   type: string
  *                   example: "Sincronización de asistencias exitosa"
- *                 attendance:
+ *                 userCode:
+ *                   type: string
+ *                   example: "2018062487"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                   example: "2024-10-11T13:39:17.983Z"
+ *                 attendanceData:
  *                   type: array
  *                   items:
  *                     type: object
  *                     properties:
- *                       fecha:
+ *                       curso:
  *                         type: string
- *                         example: "2023-10-12"
- *                       presente:
- *                         type: boolean
- *                         example: true
+ *                         example: "Asistencia al curso de FILOSOFÍA"
+ *                       asistencias:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             fecha:
+ *                               type: string
+ *                               format: date
+ *                               example: "04/10/2024"
+ *                             dia:
+ *                               type: string
+ *                               example: "Viernes"
+ *                             estado:
+ *                               type: string
+ *                               example: "Asiste"
  *       401:
  *         description: Error en la autenticación o sincronización de asistencias
  *       500:
@@ -168,58 +191,6 @@ router.post(
     handleInputErrors,
     authenticate,
     SyncController.syncUserAttendance
-);
-
-/**
- * @swagger
- * /api/v1/sync/credits:
- *   post:
- *     summary: Sincronizar y obtener los créditos acumulados del usuario
- *     tags:
- *       - Sync
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               codigo:
- *                 type: string
- *                 description: Código del usuario
- *                 example: "123456"
- *               contrasena:
- *                 type: string
- *                 description: Contraseña del usuario
- *                 example: "password123"
- *     responses:
- *       200:
- *         description: Sincronización de créditos exitosa
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Sincronización de créditos exitosa"
- *                 credits:
- *                   type: integer
- *                   example: 120
- *       401:
- *         description: Error en la autenticación o sincronización de créditos
- *       500:
- *         description: Error interno del servidor
- */
-router.post(
-    '/credits',
-    body('codigo').notEmpty().withMessage('El código no puede estar vacío'),
-    body('contrasena').notEmpty().withMessage('La contraseña no puede estar vacía'),
-    handleInputErrors,
-    authenticate,
-    SyncController.syncUserCredits
 );
 
 export default router;

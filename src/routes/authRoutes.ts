@@ -72,7 +72,6 @@ router.post('/create-account',
  */
 
 router.post('/confirm-account',
-    authenticate,
     body('token')
        .notEmpty().withMessage('Token no puede ir vacio'),
     handleInputErrors,

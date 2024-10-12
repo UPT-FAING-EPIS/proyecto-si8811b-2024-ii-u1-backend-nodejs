@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { autenticar, autenticarYExtraerAsistencias, autenticarYExtraerCreditos, autenticarYExtraerHorario } from '../services/intranetSync';
-import logger from '../logs/logger';  // Añadir el logger
+import { autenticar, autenticarYExtraerAsistencias, autenticarYExtraerHorario } from '../services/intranetSync';
+import logger from '../logs/logger';  
 import Attendance from '../models/Attendace';
 
 export class SyncController {
@@ -11,7 +11,6 @@ export class SyncController {
         try {
             logger.info(`Starting sync for user with code: ${codigo}`);
             
-            // No pedimos captcha ahora porque se resolverá automáticamente con OCR
             const result = await autenticar(codigo, contrasena);
 
             if (result) {
@@ -94,19 +93,6 @@ export class SyncController {
         }
     };
 
-    static syncUserCredits = async (req: Request, res: Response) => {
-        const { codigo, contrasena } = req.body;
-
-        try {
-            logger.info(`Starting credits sync for user with code: ${codigo}`);
-            const result = await autenticarYExtraerCreditos(codigo, contrasena);
-
-           
-        } catch (error) {
-            logger.error(`Error during credits sync for user with code: ${codigo}`, error);
-            return res.status(500).json({ error: 'Error interno del servidor' });
-        }
-    };
 }
 
 export default SyncController;

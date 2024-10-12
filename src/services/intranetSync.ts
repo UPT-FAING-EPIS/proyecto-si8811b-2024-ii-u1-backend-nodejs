@@ -232,15 +232,3 @@ export const autenticarYExtraerAsistencias = async (codigo: string, contrasena: 
         return null;
     }
 };
-
-
-export const autenticarYExtraerCreditos = async (codigo: string, contrasena: string) => {
-    // Navegar a la página de créditos acumulados.
-    // Extraer los datos de créditos en un formato estructurado.
-
-    const creditos = 0; 
-    const cookies = [];  
-
-    return { creditos, cookies };
-};
-
