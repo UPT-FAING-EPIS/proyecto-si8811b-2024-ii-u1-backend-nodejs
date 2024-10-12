@@ -23,7 +23,11 @@ const options: SwaggerOptions = {
       },
     ],
   },
-  apis: ['./src/routes/authRoutes.ts', './src/routes/syncRoutes.ts'], 
+  apis: ['./src/routes/authRoutes.ts', 
+    './src/routes/syncRoutes.ts', 
+    './src/routes/scheduleRoutes.ts',
+   './src/routes/attendanceRoutes.ts'
+   ], 
 };
 
 export default options;

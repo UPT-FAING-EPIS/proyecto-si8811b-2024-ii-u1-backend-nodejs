@@ -7,6 +7,8 @@ import swaggerUi from 'swagger-ui-express';
 import options from './swaggerOptions'; 
 import logger from '../src/logs/logger'; 
 import syncRoutes from './routes/syncRoutes';
+import attendanceRoutes from './routes/attendanceRoutes';
+import scheduleRoutes from './routes/scheduleRoutes';
 
 dotenv.config();
 connectDB();
@@ -28,6 +30,10 @@ app.use(express.json());
 app.use('/api/v1/auth', authRoutes);
 
 app.use('/api/v1/sync', syncRoutes);
+
+app.use('/api/v1/attendance', attendanceRoutes);
+
+app.use('/api/v1/schedule', scheduleRoutes);
 
 // Log cuando el servidor esté corriendo
 

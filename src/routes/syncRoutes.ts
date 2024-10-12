@@ -88,18 +88,23 @@ router.post(
  *                       dia:
  *                         type: string
  *                         example: "Lunes"
- *                       horaInicio:
- *                         type: string
- *                         example: "08:00"
- *                       horaFin:
- *                         type: string
- *                         example: "10:00"
- *                       materia:
- *                         type: string
- *                         example: "Matemáticas"
- *                       aula:
- *                         type: string
- *                         example: "A101"
+ *                       horario:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             horaInicio:
+ *                               type: string
+ *                               example: "08:00"
+ *                             horaFin:
+ *                               type: string
+ *                               example: "10:00"
+ *                             materia:
+ *                               type: string
+ *                               example: "Matemáticas"
+ *                             aula:
+ *                               type: string
+ *                               example: "A101"
  *       401:
  *         description: Error en la autenticación o sincronización del horario
  *       500:
