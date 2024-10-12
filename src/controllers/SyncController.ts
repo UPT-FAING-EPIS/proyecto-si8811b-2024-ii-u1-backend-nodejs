@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
-import { autenticar, autenticarYExtraerAsistencias, autenticarYExtraerCreditos, autenticarYExtraerHorario } from '../services/intranetSync';
-import logger from '../logs/logger';  // Añadir el logger
+import { autenticar, autenticarYExtraerAsistencias, autenticarYExtraerHorario } from '../services/intranetSync';
+import logger from '../logs/logger';  
+import Attendance from '../models/Attendace';
 
 export class SyncController {
 
@@ -10,11 +11,12 @@ export class SyncController {
         try {
             logger.info(`Starting sync for user with code: ${codigo}`);
             
-            // No pedimos captcha ahora porque se resolverá automáticamente con OCR
             const result = await autenticar(codigo, contrasena);
 
             if (result) {
-                const { cookies, currentURL } = result;
+                const { cookies, page } = result; 
+                const currentURL = page.url();
+
                 logger.info(`Sync successful for user with code: ${codigo}`);
                 return res.status(200).json({
                     message: 'Sincronización exitosa',
@@ -39,11 +41,8 @@ export class SyncController {
             const result = await autenticarYExtraerHorario(codigo, contrasena);
 
             if (result) {
-                return res.status(200).json({
-                    message: 'Sincronización de horario exitosa',
-                    schedule: result.horarios,
-                    cookies: result.cookies,
-                });
+                
+
             } else {
                 return res.status(401).json({ message: 'Error en la autenticación o sincronización del horario' });
             }
@@ -54,48 +53,46 @@ export class SyncController {
     }
 
     static syncUserAttendance = async (req: Request, res: Response) => {
-        const { codigo, contrasena } = req.body;
-
         try {
-            logger.info(`Starting attendance sync for user with code: ${codigo}`);
+            const { codigo, contrasena } = req.body;
+            const userId = req.user._id; 
+
+            logger.info(`Iniciando sincronización de asistencias para el usuario con código: ${codigo}`);
+
             const result = await autenticarYExtraerAsistencias(codigo, contrasena);
 
-            if (result) {
+            if (!result || !result.asistencias) {
+                logger.warn(`Sincronización fallida para el usuario con código: ${codigo}`);
+                return res.status(401).json({ message: 'Error en la autenticación o sincronización' });
+            }
+
+            const attendanceRecord = new Attendance({
+                userCode: codigo,
+                userId, 
+                attendanceData: result.asistencias, 
+                timestamp: new Date(),
+            });
+
+            const saveResult = await Promise.allSettled([attendanceRecord.save()]);
+
+            if (saveResult[0].status === 'fulfilled') {
+                logger.info(`Sincronización y guardado de asistencias exitoso para el usuario con código: ${codigo}`);
                 return res.status(200).json({
-                    message: 'Sincronización de asistencias exitosa',
-                    attendance: result.asistencias,
+                    message: 'Sincronización de asistencias exitosa y guardada en la base de datos',
+                    userCode: codigo,
                     cookies: result.cookies,
+                    attendanceData: result.asistencias, 
                 });
             } else {
-                return res.status(401).json({ message: 'Error en la autenticación o sincronización de asistencias' });
+                logger.error(`Error al guardar los datos de asistencia para el usuario con código ${codigo}`);
+                return res.status(500).json({ error: 'Error al guardar los datos de asistencia en la base de datos' });
             }
         } catch (error) {
-            logger.error(`Error during attendance sync for user with code: ${codigo}`, error);
-            return res.status(500).json({ error: 'Error interno del servidor' });
+            logger.error(`Error durante la sincronización de asistencias para el usuario ${req.body.codigo}:`, error);
+            res.status(500).json({ error: 'Error interno del servidor' });
         }
     };
 
-    static syncUserCredits = async (req: Request, res: Response) => {
-        const { codigo, contrasena } = req.body;
-
-        try {
-            logger.info(`Starting credits sync for user with code: ${codigo}`);
-            const result = await autenticarYExtraerCreditos(codigo, contrasena);
-
-            if (result) {
-                return res.status(200).json({
-                    message: 'Sincronización de créditos exitosa',
-                    credits: result.creditos,
-                    cookies: result.cookies,
-                });
-            } else {
-                return res.status(401).json({ message: 'Error en la autenticación o sincronización de créditos' });
-            }
-        } catch (error) {
-            logger.error(`Error during credits sync for user with code: ${codigo}`, error);
-            return res.status(500).json({ error: 'Error interno del servidor' });
-        }
-    };
 }
 
 export default SyncController;
