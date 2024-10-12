@@ -143,13 +143,68 @@ export const autenticar = async (codigo: string, contrasena: string) => {
 };
 
 export const autenticarYExtraerHorario = async (codigo: string, contrasena: string) => {
-    // Navegar a la página de horarios.
-    // Extraer datos del horario en un formato estructurado.
-    
-    const horarios = []; 
-    const cookies = [];  
+    const authResult = await autenticar(codigo, contrasena);
+    if (!authResult) return null;
 
-    return { horarios, cookies };
+    const { page, cookies, sessionToken } = authResult;
+
+    try {
+        const horarioURL = `https://net.upt.edu.pe/alumno.php?mihorario=1&sesion=${sessionToken}`;
+        await page.setCookie(...cookies);
+        await page.goto(horarioURL, { waitUntil: 'networkidle2' });
+        console.log('Navegación a la página de horarios completada');
+
+        if (!page.url().includes(`mihorario=1&sesion=${sessionToken}`)) {
+            throw new Error('No se llegó a la URL de la página de horarios con sesión.');
+        }
+
+        await page.waitForSelector('table[border="1"][align="center"]', { timeout: 20000 });
+        console.log('Tabla de horarios encontrada, extrayendo datos');
+
+        // Extraer datos de horarios
+        const horarios = await page.evaluate(() => {
+            const table = document.querySelector('table[border="1"][align="center"]');
+            if (!table) return [];
+
+            const rows = Array.from(table.querySelectorAll('tbody tr'));
+            return rows.map(row => {
+                const cells = Array.from(row.querySelectorAll('td'));
+                if (cells.length === 0) return null;
+
+                const courseData = {
+                    code: cells[0]?.textContent?.trim() || '',
+                    name: cells[1]?.textContent?.trim() || '',
+                    section: cells[2]?.textContent?.trim() || '',
+                    schedule: {}
+                };
+
+                const days = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
+                for (let i = 3; i < cells.length; i++) {
+                    const timeSlot = cells[i]?.textContent?.trim();
+                    if (timeSlot !== '') {
+                        courseData.schedule[days[i-3]] = timeSlot.split('\n');
+                    }
+                }
+
+                return courseData;
+            }).filter(Boolean);
+        });
+
+        await page.close();
+        await page.browser().close();
+
+        return { horarios, cookies };
+
+    } catch (error) {
+        console.error('Error durante la extracción de horarios:', error);
+
+        if (!page.isClosed()) {
+            await page.close();
+        }
+        await page.browser().close();
+
+        return null;
+    }
 };
 
 
